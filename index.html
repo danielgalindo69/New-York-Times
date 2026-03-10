@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYT Explorer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
+    
+    <!-- Hoja de estilos externa -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo">NYT <span>Explorer</span></div>
+        <nav>
+            <ul>
+                <!-- Libros -->
+                <li>
+                    📚 Libros
+                    <div class="dropdown">
+                        <a href="#" onclick="event.preventDefault(); loadCategory('books', 'overview')">Overview Semanal</a>
+                        <a href="#" onclick="event.preventDefault(); loadCategory('books', 'hardcover-fiction')">Ficción — Top 15</a>
+                        <a href="#" onclick="event.preventDefault(); loadCategory('books', 'hardcover-nonfiction')">No Ficción — Top 15</a>
+                    </div>
+                </li>
+                <!-- Most Popular -->
+                <li>
+                    🔥 Lo más popular
+                    <div class="dropdown">
+                        <a href="#" onclick="event.preventDefault(); loadCategory('most-popular', 'viewed')">Más vistos</a>
+                        <a href="#" onclick="event.preventDefault(); loadCategory('most-popular', 'shared')">Más compartidos</a>
+                    </div>
+                </li>
+                <!-- Top Stories -->
+                <li>
+                    📰 Top Stories
+                    <div class="dropdown">
+                        <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'home')">Portada NYT</a>
+                        <!-- Secciones dinámicas para Top Stories -->
+                        <div style="border-top: 1px solid var(--border-color); margin-top: 5px; padding-top: 5px;">
+                            <span style="padding: 0.8rem 1rem; color: #888; font-size: 0.8rem; display:block;">Por Sección:</span>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'arts')">Arts</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'business')">Business</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'technology')">Technology</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'science')">Science</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'sports')">Sports</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'health')">Health</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'politics')">Politics</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'world')">World</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'us')">US</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'movies')">Movies</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'food')">Food</a>
+                                <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'travel')">Travel</a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="content">
+        <!-- El contenido se inyecta dinámicamente aquí -->
+    </main>
+
+    <!-- Script externo -->
+    <script src="script.js"></script>
+</body>
+</html>

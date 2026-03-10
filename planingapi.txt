@@ -1,0 +1,142 @@
+Construye una aplicación web completa en HTML, CSS y JavaScript vanilla 
+(un solo archivo index.html) que consuma las siguientes APIs del 
+New York Times. La API Key se configurará como una constante al inicio 
+del JS llamada API_KEY.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔌 ENDPOINTS A IMPLEMENTAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. BOOKS — Overview semanal completo
+   GET https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=KEY
+
+2. BOOKS — Lista específica (hardcover-fiction)
+   GET https://api.nytimes.com/svc/books/v3/lists/current/hardcover-fiction.json?api-key=KEY
+
+3. BOOKS — Lista específica (hardcover-nonfiction)
+   GET https://api.nytimes.com/svc/books/v3/lists/current/hardcover-nonfiction.json?api-key=KEY
+
+4. MOST POPULAR — Más vistos (periodo configurable: 1, 7, 30 días)
+   GET https://api.nytimes.com/svc/mostpopular/v2/viewed/{period}.json?api-key=KEY
+
+5. MOST POPULAR — Más compartidos (periodo configurable: 1, 7, 30 días)
+   GET https://api.nytimes.com/svc/mostpopular/v2/shared/{period}.json?api-key=KEY
+
+6. TOP STORIES — Portada principal
+   GET https://api.nytimes.com/svc/topstories/v2/home.json?api-key=KEY
+
+7. TOP STORIES — Por sección (sección configurable por el usuario)
+   GET https://api.nytimes.com/svc/topstories/v2/{section}.json?api-key=KEY
+   Secciones disponibles: arts, business, technology, science, 
+   sports, health, politics, world, us, movies, food, travel
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏗️ ESTRUCTURA DE LA APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+La app tendrá un menú de navegación lateral o superior con estas 
+secciones:
+
+  📚 Libros
+     ├── Vista general semanal (overview)
+     ├── Ficción — Top 15
+     └── No Ficción — Top 15
+
+  🔥 Lo más popular
+     ├── Más vistos (selector de periodo: 1 / 7 / 30 días)
+     └── Más compartidos (selector de periodo: 1 / 7 / 30 días)
+
+  📰 Top Stories
+     ├── Portada NYT (home)
+     └── Por sección (dropdown con todas las secciones)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 DATOS A MOSTRAR POR SECCIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LIBROS (cada libro muestra):
+  - Portada del libro: campo book_image
+    Si no existe imagen, mostrar placeholder gris con ícono de libro
+  - Número de ranking (#1, #2, etc): campo rank
+  - Título: campo title
+  - Autor: campo author
+  - Editorial: campo publisher
+  - Semanas en lista: campo weeks_on_list
+  - Descripción breve: campo description
+  - Botón "Ver en Amazon": campo amazon_product_url (abrir en nueva pestaña)
+
+ARTÍCULOS — Most Popular y Top Stories (cada artículo muestra):
+  - Imagen del artículo: 
+      Most Popular → media[0]["media-metadata"][2].url (formato large)
+      Top Stories  → multimedia[0].url donde format="Large Thumbnail" 
+      Si no hay imagen → placeholder gris con ícono de periódico
+  - Titular: campo title
+  - Resumen: campo abstract
+  - Autor: campo byline
+  - Fecha de publicación: campo published_date (formatear a español: 
+    "10 de marzo de 2026")
+  - Sección: campo section
+  - Botón "Leer artículo": campo url (abrir en nueva pestaña)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚙️ COMPORTAMIENTO Y UX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Al cargar la app, mostrar automáticamente el Books Overview
+- Cada sección debe mostrar un spinner/loader mientras carga
+- Los datos deben cachearse en memoria (objeto JS) para no repetir 
+  llamadas ya hechas en la misma sesión
+- Para Most Popular y Top Stories con selector, hacer nueva petición 
+  al cambiar el valor del selector
+- Limitar artículos/libros mostrados a 12 por vista para no saturar
+- Los resultados se muestran en un grid de tarjetas (cards)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 MANEJO DE ERRORES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Manejar y mostrar mensajes claros para estos casos:
+  - 401 Unauthorized → "API Key inválida o no configurada"
+  - 429 Too Many Requests → "Límite de peticiones alcanzado. 
+    Intenta en unos minutos."
+  - Sin conexión / fetch falla → "Error de conexión. 
+    Verifica tu internet."
+  - Sin resultados → "No se encontraron resultados para esta consulta"
+  - Todos los errores deben mostrarse dentro del área de contenido, 
+    nunca como alert()
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎨 DISEÑO Y ESTILO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Estética editorial tipo periódico/revista de lujo — inspirada en 
+  el diseño gráfico del New York Times
+- Paleta: fondo negro o gris muy oscuro (#0a0a0a), texto blanco/crema, 
+  acento en rojo NYT (#C8102E)
+- Tipografía: usar Google Fonts — "Playfair Display" para títulos, 
+  "Source Serif 4" para cuerpo de texto
+- Las tarjetas de libros deben verse como fichas de librería elegante
+- Las tarjetas de artículos deben verse como recortes de periódico
+- Layout responsive: 3 columnas en desktop, 2 en tablet, 1 en móvil
+- Navbar fijo arriba con logo "NYT Explorer" y los 3 grupos del menú
+- Animación sutil de fade-in al cargar cada sección
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💻 REQUISITOS TÉCNICOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Todo en un solo archivo index.html (HTML + <style> + <script>)
+- JavaScript vanilla puro — sin frameworks ni librerías externas
+- Usar async/await para todas las peticiones fetch
+- Comentar cada función explicando qué hace, qué recibe y qué retorna
+- La constante API_KEY debe estar al inicio del script con instrucción 
+  clara de cómo reemplazarla
+- No usar localStorage ni sessionStorage — caché solo en memoria (objeto JS)
+- El código debe estar organizado en estas secciones claramente 
+  comentadas:
+    // ═══ CONFIGURACIÓN ═══
+    // ═══ CACHÉ ═══
+    // ═══ LLAMADAS A LA API ═══
+    // ═══ RENDERIZADO ═══
+    // ═══ NAVEGACIÓN ═══
+    // ═══ INICIALIZACIÓN ═══

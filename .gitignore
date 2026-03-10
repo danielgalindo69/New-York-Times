@@ -1,0 +1,6 @@
+# Variables de Entorno y Secretos
+.env
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
