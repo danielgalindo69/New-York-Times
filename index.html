@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NYT Explorer</title>
+    <title>New York Times</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,12 +15,15 @@
 <body>
 
     <header>
-        <div class="logo">NYT <span>Explorer</span></div>
-        <nav>
+        <div class="logo">New York Times <span>Explorador</span></div>
+        <button class="menu-toggle" id="mobile-menu-btn" title="Abrir menú">
+            ☰
+        </button>
+        <nav id="main-nav">
             <ul>
                 <!-- Libros -->
                 <li>
-                    📚 Libros
+                    Libros
                     <div class="dropdown">
                         <a href="#" onclick="event.preventDefault(); loadCategory('books', 'overview')">Overview Semanal</a>
                         <a href="#" onclick="event.preventDefault(); loadCategory('books', 'hardcover-fiction')">Ficción — Top 15</a>
@@ -29,7 +32,7 @@
                 </li>
                 <!-- Most Popular -->
                 <li>
-                    🔥 Lo más popular
+                    Lo más popular
                     <div class="dropdown">
                         <a href="#" onclick="event.preventDefault(); loadCategory('most-popular', 'viewed')">Más vistos</a>
                         <a href="#" onclick="event.preventDefault(); loadCategory('most-popular', 'shared')">Más compartidos</a>
@@ -37,7 +40,7 @@
                 </li>
                 <!-- Top Stories -->
                 <li>
-                    📰 Top Stories
+                    Top Stories
                     <div class="dropdown">
                         <a href="#" onclick="event.preventDefault(); loadCategory('top-stories', 'home')">Portada NYT</a>
                         <!-- Secciones dinámicas para Top Stories -->
@@ -59,6 +62,12 @@
                             </div>
                         </div>
                     </div>
+                </li>
+                <!-- Theme Toggle -->
+                <li style="display: flex; align-items: center; justify-content: center; margin-left: auto;">
+                    <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar modo" style="background: none; border: 1px solid var(--border-color); color: var(--text-color); cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                        CLARO
+                    </button>
                 </li>
             </ul>
         </nav>

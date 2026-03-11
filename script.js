@@ -2,7 +2,7 @@
 // Configuración de las variables de entorno
 let API_KEY = "";
 let API_SECRET = "";
-const ITEMS_LIMIT = 12;
+const ITEMS_LIMIT = 20;
 
 // ═══ CARGA DE ENTORNO ═══
 /**
@@ -79,6 +79,7 @@ function showLoader() {
   mainContent.innerHTML = `
         <div class="loader-container">
             <div class="spinner"></div>
+            <div class="loader-text">CARGANDO...</div>
         </div>
     `;
 }
@@ -104,19 +105,21 @@ function formatDate(dateString) {
 function renderBookCard(book) {
   const imgHtml = book.book_image
     ? `<img src="${book.book_image}" alt="Portada de ${book.title}" class="card-img" loading="lazy">`
-    : `<div class="card-img">📖</div>`;
+    : `<div class="card-placeholder">📖</div>`;
 
   return `
         <article class="card">
             ${book.rank ? `<div class="card-rank">#${book.rank}</div>` : ""}
-            ${imgHtml}
+            <div class="card-badge">LIBRO</div>
+            <div class="card-img-container">
+                ${imgHtml}
+            </div>
             <div class="card-content">
-                <div class="card-category">LIBRO</div>
                 <h3 class="card-title">${book.title || "Sin Título"}</h3>
                 <div class="card-meta">
-                    <span><strong>Autor:</strong> ${book.author || "Desconocido"}</span>
-                    <span><strong>Editorial:</strong> ${book.publisher || "N/A"}</span>
-                    ${book.weeks_on_list ? `<span><strong>Semanas listado:</strong> ${book.weeks_on_list}</span>` : ""}
+                    <div class="card-meta-item"><strong>Autor:</strong> ${book.author || "Desconocido"}</div>
+                    <div class="card-meta-item"><strong>Editorial:</strong> ${book.publisher || "N/A"}</div>
+                    ${book.weeks_on_list ? `<div class="card-meta-item"><strong>Semanas listado:</strong> ${book.weeks_on_list}</div>` : ""}
                 </div>
                 <p class="card-desc">${book.description || "Sin descripción disponible para este título."}</p>
                 <a href="${book.amazon_product_url || "#"}" target="_blank" rel="noopener noreferrer" class="card-btn">Ver en Amazon</a>
@@ -128,7 +131,7 @@ function renderBookCard(book) {
 function renderArticleCard(article, imgUrl) {
   const imgHtml = imgUrl
     ? `<img src="${imgUrl}" alt="Imagen del artículo" class="card-img" loading="lazy">`
-    : `<div class="card-img">📰</div>`;
+    : `<div class="card-placeholder">📰</div>`;
 
   const byline = article.byline
     ? article.byline.replace(/^By /i, "")
@@ -136,13 +139,15 @@ function renderArticleCard(article, imgUrl) {
 
   return `
         <article class="card">
-            ${imgHtml}
+            <div class="card-badge">${article.section || "Noticias"}</div>
+            <div class="card-img-container">
+                ${imgHtml}
+            </div>
             <div class="card-content">
-                <div class="card-category">${article.section || "Noticias"}</div>
                 <h3 class="card-title">${article.title || "Titular de NYT"}</h3>
                 <div class="card-meta">
-                    <span><strong>Autor:</strong> ${byline}</span>
-                    <span><strong>Fecha:</strong> ${formatDate(article.published_date)}</span>
+                    <div class="card-meta-item"><strong>Autor:</strong> ${byline}</div>
+                    <div class="card-meta-item"><strong>Fecha:</strong> ${formatDate(article.published_date)}</div>
                 </div>
                 <p class="card-desc">${article.abstract || "Resumen no disponible para este artículo."}</p>
                 <a href="${article.url || "#"}" target="_blank" rel="noopener noreferrer" class="card-btn">Leer artículo</a>
@@ -151,11 +156,15 @@ function renderArticleCard(article, imgUrl) {
     `;
 }
 
-function renderGrid(title, cardsHtml, controlsHtml = "") {
+function renderGrid(title, cardsHtml, controlsHtml = "", paginationHtml = "") {
   if (!cardsHtml || cardsHtml.length === 0) {
-    showError(
-      "No se encontraron resultados para esta consulta en el servidor.",
-    );
+    mainContent.innerHTML = `
+        <h2 class="section-title">${title}</h2>
+        ${controlsHtml ? `<div class="controls">${controlsHtml}</div>` : ""}
+        <div class="error-msg">
+            No se encontraron resultados para esta consulta con los filtros actuales.
+        </div>
+    `;
     return;
   }
 
@@ -165,19 +174,63 @@ function renderGrid(title, cardsHtml, controlsHtml = "") {
         <div class="grid">
             ${cardsHtml.join("")}
         </div>
+        ${paginationHtml ? `<div class="pagination-container" style="display:flex; justify-content:center; margin-top: 3rem;">${paginationHtml}</div>` : ""}
     `;
 }
 
-// ═══ NAVEGACIÓN ═══
+// ═══ NAVEGACIÓN Y TEMA ═══
 let currentSectionType = "books";
 let currentSubSection = "overview";
 let currentPeriod = 1;
 let currentSearchTerm = "";
+// Nuevas variables de estado para Paginación y Filtros
+let currentPage = 1;
+const ITEMS_PER_PAGE = 20;
+let currentAuthorFilter = "";
+let currentPublisherFilter = "";
+let cachedBooksForPagination = [];
 
-async function loadCategory(type, subsection) {
+/**
+ * Alterna entre el modo claro y oscuro.
+ * Guarda la preferencia en localStorage.
+ */
+function toggleTheme() {
+  const body = document.body;
+  const isLightMode = body.classList.toggle('light-mode');
+  
+  // Cambiar icono del botón
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+      btn.innerText = isLightMode ? 'CLARO' : 'OSCURO';
+  }
+  
+  // Guardar preferencia, aunque las keys API o resultados no usen localStorage,
+  // el tema visual es útil mantenerlo.
+  localStorage.setItem('nyt_theme', isLightMode ? 'light' : 'dark');
+}
+
+/**
+ * Carga el tema guardado al iniciar la app
+ */
+function loadThemePreference() {
+  const savedTheme = localStorage.getItem('nyt_theme');
+  if (savedTheme === 'light') {
+      document.body.classList.add('light-mode');
+      const btn = document.getElementById('theme-toggle');
+      if (btn) btn.innerText = '🌙';
+  }
+}
+
+async function loadCategory(type, subsection, retainFilters = false) {
   if (type) currentSectionType = type;
   if (subsection) currentSubSection = subsection;
-  currentSearchTerm = ""; // Reset search term when changing categories
+  
+  if (!retainFilters) {
+      currentSearchTerm = ""; 
+      currentPage = 1;
+      currentAuthorFilter = "";
+      currentPublisherFilter = "";
+  }
 
   showLoader();
 
@@ -188,38 +241,20 @@ async function loadCategory(type, subsection) {
     let controlsHtml = "";
 
     if (currentSectionType === "books") {
-      controlsHtml = `
-          <div class="search-bar" style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; width: 100%; max-width: 500px;">
-              <input type="text" id="book-search" placeholder="Buscar por título, autor o editorial..." 
-                     style="flex-grow: 1; padding: 0.8rem; background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; font-family: var(--font-body); outline: none;"
-                     onkeyup="if(event.key === 'Enter') executeBookSearch()">
-              <button onclick="executeBookSearch()" style="padding: 0.8rem 1.5rem; background-color: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer; font-family: var(--font-title); font-weight: bold; transition: background-color 0.2s;">Buscar</button>
-          </div>
-      `;
+      let rawBooks = [];
 
       if (currentSubSection === "overview") {
         title = "Libros: Overview Semanal";
         url = `https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=${API_KEY}`;
         const data = await fetchAPI(url);
 
-        let itemsCount = 0;
         if (data.results && data.results.lists) {
           for (const list of data.results.lists) {
             for (const book of list.books) {
-              // Aplicar filtro de búsqueda
-              if (currentSearchTerm) {
-                  const t = currentSearchTerm.toLowerCase();
-                  const matches = (book.title && book.title.toLowerCase().includes(t)) ||
-                                  (book.author && book.author.toLowerCase().includes(t)) ||
-                                  (book.publisher && book.publisher.toLowerCase().includes(t));
-                  if (!matches) continue;
-              }
-
-              if (itemsCount >= ITEMS_LIMIT) break;
-              cardsHtml.push(renderBookCard(book));
-              itemsCount++;
+                // Agregar categoría local para mostrar en badge
+                book.local_category = list.list_name; 
+                rawBooks.push(book);
             }
-            if (itemsCount >= ITEMS_LIMIT) break;
           }
         }
       } else {
@@ -228,22 +263,104 @@ async function loadCategory(type, subsection) {
         title = `Libros: ${secLabel} (Top 15)`;
         url = `https://api.nytimes.com/svc/books/v3/lists/current/${currentSubSection}.json?api-key=${API_KEY}`;
         const data = await fetchAPI(url);
-
-        const books = data.results?.books || [];
-        
-        // Aplicar filtro de búsqueda
-        const filteredBooks = currentSearchTerm 
-            ? books.filter(book => {
-                const t = currentSearchTerm.toLowerCase();
-                return (book.title && book.title.toLowerCase().includes(t)) ||
-                       (book.author && book.author.toLowerCase().includes(t)) ||
-                       (book.publisher && book.publisher.toLowerCase().includes(t));
-              })
-            : books;
-
-        const limitedBooks = filteredBooks.slice(0, ITEMS_LIMIT);
-        cardsHtml = limitedBooks.map(renderBookCard);
+        rawBooks = data.results?.books || [];
       }
+
+      // 1. Ya no hace falta valores únicos, ahora son inputs de texto
+
+      // 2. Construir controles (Buscador + Buscadores por Autor/Editorial de texto)
+      controlsHtml = `
+          <div class="search-bar" style="display: flex; gap: 0.8rem; width: 100%; flex-wrap: wrap;">
+              <input type="text" id="book-search" placeholder="Buscar por título..." value="${currentSearchTerm}"
+                     style="flex-grow: 1; min-width: 250px;"
+                     onkeyup="if(event.key === 'Enter') applyFilters()">
+                     
+              <input type="text" id="author-search" placeholder="Buscar por Autor..." value="${currentAuthorFilter}"
+                     style="flex-grow: 1; min-width: 200px;"
+                     onkeyup="if(event.key === 'Enter') applyFilters()">
+
+              <input type="text" id="publisher-search" placeholder="Buscar por Editorial..." value="${currentPublisherFilter}"
+                     style="flex-grow: 1; min-width: 200px;"
+                     onkeyup="if(event.key === 'Enter') applyFilters()">
+
+              <button onclick="applyFilters()">Buscar / Aplicar</button>
+              ${(currentSearchTerm || currentAuthorFilter || currentPublisherFilter) ? `<button onclick="clearFilters()" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5);">Limpiar</button>` : ""}
+          </div>
+      `;
+
+      // 3. Aplicar Filtros Globales (Búsqueda por texto en Título, Autor y Editorial)
+      let filteredBooks = rawBooks;
+      
+      if (currentSearchTerm) {
+         const t = currentSearchTerm.toLowerCase().trim();
+         filteredBooks = filteredBooks.filter(b => b.title && b.title.toLowerCase().includes(t));
+      }
+      
+      if (currentAuthorFilter) {
+          const a = currentAuthorFilter.toLowerCase().trim();
+          filteredBooks = filteredBooks.filter(b => b.author && b.author.toLowerCase().includes(a));
+      }
+
+      if (currentPublisherFilter) {
+          const p = currentPublisherFilter.toLowerCase().trim();
+          filteredBooks = filteredBooks.filter(b => b.publisher && b.publisher.toLowerCase().includes(p));
+      }
+
+      // Guardar en cache global para paginación
+      cachedBooksForPagination = filteredBooks;
+
+      // 4. Calcular Paginación
+      const totalItems = cachedBooksForPagination.length;
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const paginatedBooks = cachedBooksForPagination.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+      // 5. Renderizar Tarjetas
+      cardsHtml = paginatedBooks.map(book => {
+          // Si el book no trae category asignada, por defecto ponemos LIBRO, sino usamos local_category
+          const fixedBook = {...book, category: book.local_category || "LIBRO" };
+          // Customizamos un poco renderBookCard inyectando category al HTML:
+          const imgHtml = fixedBook.book_image
+            ? `<img src="${fixedBook.book_image}" alt="Portada de ${fixedBook.title}" class="card-img" loading="lazy">`
+            : `<div class="card-placeholder">📖</div>`;
+
+          return `
+                <article class="card">
+                    ${fixedBook.rank ? `<div class="card-rank">#${fixedBook.rank}</div>` : ""}
+                    <div class="card-badge">${fixedBook.category.toUpperCase()}</div>
+                    <div class="card-img-container">
+                        ${imgHtml}
+                    </div>
+                    <div class="card-content">
+                        <h3 class="card-title">${fixedBook.title || "Sin Título"}</h3>
+                        <div class="card-meta">
+                            <div class="card-meta-item"><strong>Autor:</strong> ${fixedBook.author || "Desconocido"}</div>
+                            <div class="card-meta-item"><strong>Editorial:</strong> ${fixedBook.publisher || "N/A"}</div>
+                            ${fixedBook.weeks_on_list ? `<div class="card-meta-item"><strong>Semanas listado:</strong> ${fixedBook.weeks_on_list}</div>` : ""}
+                        </div>
+                        <p class="card-desc">${fixedBook.description || "Sin descripción disponible para este título."}</p>
+                        <a href="${fixedBook.amazon_product_url || "#"}" target="_blank" rel="noopener noreferrer" class="card-btn">Ver en Amazon</a>
+                    </div>
+                </article>
+            `;
+      });
+
+      // 6. Generar HTML de Paginación
+      let paginationHtml = "";
+      if (totalPages > 1) {
+          paginationHtml = `
+            <div style="display:flex; align-items:center; gap:1rem; background: var(--card-bg); padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid var(--card-border); backdrop-filter: blur(10px);">
+                <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === 1 ? "opacity:0.5; cursor:not-allowed;" : ""}">Anterior</button>
+                <span style="font-family: var(--font-title); font-weight: bold; color: var(--text-color);">Página ${currentPage} de ${totalPages}</span>
+                <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === totalPages ? "opacity:0.5; cursor:not-allowed;" : ""}">Siguiente</button>
+            </div>
+          `;
+      }
+
+      renderGrid(title, cardsHtml, controlsHtml, paginationHtml);
+      return; 
     } else if (currentSectionType === "most-popular") {
       const typeLabel =
         currentSubSection === "viewed" ? "Más Vistos" : "Más Compartidos";
@@ -314,27 +431,96 @@ function changePeriod(period) {
 }
 
 /**
- * Ejecuta la búsqueda de libros sin cambiar la categoría base (solo re-renderiza con el filtro)
+ * Lee el estado actual de los inputs de texto y ejecuta la búsqueda
  */
+function applyFilters() {
+    currentPage = 1;
+
+    // Obtener valores de texto
+    const titleInput = document.getElementById('book-search');
+    const authorInput = document.getElementById('author-search');
+    const pubInput = document.getElementById('publisher-search');
+
+    currentSearchTerm = titleInput ? titleInput.value : "";
+    currentAuthorFilter = authorInput ? authorInput.value : "";
+    currentPublisherFilter = pubInput ? pubInput.value : "";
+
+    // Disparar recarga conservando estado nuevo
+    executeBookSearch();
+}
+
+/**
+ * Ir a la página y recompilar
+ */
+function goToPage(page) {
+    currentPage = page;
+    // recargar con keepFilters=true
+    loadCategory(currentSectionType, currentSubSection, true).then(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
+function clearFilters() {
+    currentSearchTerm = "";
+    currentAuthorFilter = "";
+    currentPublisherFilter = "";
+    currentPage = 1;
+    loadCategory(currentSectionType, currentSubSection, true);
+}
+
 function executeBookSearch() {
   const searchInput = document.getElementById("book-search");
   if (searchInput) {
       currentSearchTerm = searchInput.value.trim();
-      // En vez de recargar el fetch desde 0 y perder el estado, re-usamos loadCategory que 
-      // aprovechará la caché, pero ahora con el valor de \`currentSearchTerm\` activo
-      loadCategory(currentSectionType, currentSubSection).then(() => {
-          // Restaurar el valor del input después de renderizar (porque renderGrid lo sobrescribe)
-          const newSearchInput = document.getElementById("book-search");
-          if (newSearchInput) {
-              newSearchInput.value = currentSearchTerm;
-              newSearchInput.focus();
-          }
-      });
   }
+  currentPage = 1;
+  loadCategory(currentSectionType, currentSubSection, true).then(() => {
+      const newSearchInput = document.getElementById("book-search");
+      if (newSearchInput) {
+          newSearchInput.value = currentSearchTerm;
+          // focus opcional dependiendo de la UX
+      }
+  });
 }
+
+// Manejo estricto de los eventos del navbar móvil y menús del NYT
+document.addEventListener('click', function(event) {
+    // Menú hamburguesa global
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mainNav = document.getElementById('main-nav');
+    
+    if (mobileBtn && event.target === mobileBtn) {
+        mainNav.classList.toggle('active');
+        mobileBtn.innerText = mainNav.classList.contains('active') ? '✕' : '☰';
+        return; // Detener aquí para el menú hamburguesa
+    }
+    
+    // Expandir dropdowns SOLO en moviles haciendo click sobre la categoria Padre
+    if (window.innerWidth <= 760 && mainNav && mainNav.classList.contains('active')) {
+      const clickedLi = event.target.closest('nav#main-nav li');
+      if (clickedLi) {
+         // Si hicimos click exactamente en una opcion interior del dropdown (ej un enlace), cerrar menú entero
+         if (event.target.tagName.toLowerCase() === 'a' && !event.target.classList.contains('menu-toggle')) {
+            mainNav.classList.remove('active');
+            if(mobileBtn) mobileBtn.innerText = '☰';
+            return;
+         }
+         
+         // Si se hizo click en el padre, togglear clase
+         clickedLi.classList.toggle('active-mobile');
+         // Cerrar los demas
+         document.querySelectorAll('nav#main-nav li').forEach(li => {
+             if (li !== clickedLi) li.classList.remove('active-mobile');
+         });
+      }
+    }
+});
 
 // ═══ INICIALIZACIÓN ═══
 async function initApp() {
+  // Cargar tema guardado antes de que termine de renderizar la pantalla
+  loadThemePreference();
+
   // Cargar variables de entorno antes de cualquier fetch
   await loadEnv();
 
