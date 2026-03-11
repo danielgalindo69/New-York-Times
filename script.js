@@ -188,7 +188,18 @@ let currentPage = 1;
 const ITEMS_PER_PAGE = 20;
 let currentAuthorFilter = "";
 let currentPublisherFilter = "";
-let cachedBooksForPagination = [];
+let cachedItemsForPagination = [];
+
+function getPaginationHtml(totalPages) {
+  if (totalPages <= 1) return "";
+  return `
+    <div style="display:flex; align-items:center; justify-content:center; gap:1rem; background: var(--card-bg); padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid var(--card-border); backdrop-filter: blur(10px); margin-top:2rem;">
+        <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === 1 ? "opacity:0.5; cursor:not-allowed;" : ""}">Anterior</button>
+        <span style="font-family: var(--font-title); font-weight: bold; color: var(--text-color);">Página ${currentPage} de ${totalPages}</span>
+        <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === totalPages ? "opacity:0.5; cursor:not-allowed;" : ""}">Siguiente</button>
+    </div>
+  `;
+}
 
 /**
  * Alterna entre el modo claro y oscuro.
@@ -307,15 +318,15 @@ async function loadCategory(type, subsection, retainFilters = false) {
       }
 
       // Guardar en cache global para paginación
-      cachedBooksForPagination = filteredBooks;
+      cachedItemsForPagination = filteredBooks;
 
       // 4. Calcular Paginación
-      const totalItems = cachedBooksForPagination.length;
+      const totalItems = cachedItemsForPagination.length;
       const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
       if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
 
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-      const paginatedBooks = cachedBooksForPagination.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+      const paginatedBooks = cachedItemsForPagination.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
       // 5. Renderizar Tarjetas
       cardsHtml = paginatedBooks.map(book => {
@@ -348,16 +359,7 @@ async function loadCategory(type, subsection, retainFilters = false) {
       });
 
       // 6. Generar HTML de Paginación
-      let paginationHtml = "";
-      if (totalPages > 1) {
-          paginationHtml = `
-            <div style="display:flex; align-items:center; gap:1rem; background: var(--card-bg); padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid var(--card-border); backdrop-filter: blur(10px);">
-                <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === 1 ? "opacity:0.5; cursor:not-allowed;" : ""}">Anterior</button>
-                <span style="font-family: var(--font-title); font-weight: bold; color: var(--text-color);">Página ${currentPage} de ${totalPages}</span>
-                <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""} style="padding: 0.5rem 1rem; ${currentPage === totalPages ? "opacity:0.5; cursor:not-allowed;" : ""}">Siguiente</button>
-            </div>
-          `;
-      }
+      const paginationHtml = getPaginationHtml(totalPages);
 
       renderGrid(title, cardsHtml, controlsHtml, paginationHtml);
       return; 
@@ -378,10 +380,14 @@ async function loadCategory(type, subsection, retainFilters = false) {
       url = `https://api.nytimes.com/svc/mostpopular/v2/${currentSubSection}/${currentPeriod}.json?api-key=${API_KEY}`;
       const data = await fetchAPI(url);
 
-      const articles = data.results || [];
-      const limitedArticles = articles.slice(0, ITEMS_LIMIT);
+      cachedItemsForPagination = data.results || [];
+      const totalItems = cachedItemsForPagination.length;
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const paginatedArticles = cachedItemsForPagination.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-      cardsHtml = limitedArticles.map((article) => {
+      cardsHtml = paginatedArticles.map((article) => {
         let imgUrl = null;
         if (article.media && article.media.length > 0) {
           const metadata = article.media[0]["media-metadata"];
@@ -393,6 +399,9 @@ async function loadCategory(type, subsection, retainFilters = false) {
         }
         return renderArticleCard(article, imgUrl);
       });
+
+      const paginationHtml = getPaginationHtml(totalPages);
+      renderGrid(title, cardsHtml, controlsHtml, paginationHtml);
     } else if (currentSectionType === "top-stories") {
       const capSection =
         currentSubSection.charAt(0).toUpperCase() + currentSubSection.slice(1);
@@ -400,10 +409,14 @@ async function loadCategory(type, subsection, retainFilters = false) {
       url = `https://api.nytimes.com/svc/topstories/v2/${currentSubSection}.json?api-key=${API_KEY}`;
 
       const data = await fetchAPI(url);
-      const articles = data.results || [];
-      const limitedArticles = articles.slice(0, ITEMS_LIMIT);
+      cachedItemsForPagination = data.results || [];
+      const totalItems = cachedItemsForPagination.length;
+      const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+      if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const paginatedArticles = cachedItemsForPagination.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-      cardsHtml = limitedArticles.map((article) => {
+      cardsHtml = paginatedArticles.map((article) => {
         let imgUrl = null;
         if (article.multimedia && article.multimedia.length > 0) {
           const lgThumb = article.multimedia.find(
@@ -416,9 +429,10 @@ async function loadCategory(type, subsection, retainFilters = false) {
         }
         return renderArticleCard(article, imgUrl);
       });
-    }
 
-    renderGrid(title, cardsHtml, controlsHtml);
+      const paginationHtml = getPaginationHtml(totalPages);
+      renderGrid(title, cardsHtml, controlsHtml, paginationHtml);
+    }
   } catch (error) {
     showError(error.message);
     console.error("NYT Explorer Error: ", error);
