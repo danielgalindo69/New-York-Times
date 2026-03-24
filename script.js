@@ -1,50 +1,81 @@
 // ═══ CONFIGURACIÓN ═══
-// Configuración de las variables de entorno
 let API_KEY = "";
 let API_SECRET = "";
 const ITEMS_LIMIT = 20;
 
-// ═══ CARGA DE ENTORNO ═══
+// Detección de entorno: en producción (Vercel), usamos el proxy serverless.
+// En local (Live Server / http-server), leemos el .env y llamamos directo.
+const IS_PRODUCTION = window.location.hostname !== 'localhost'
+  && window.location.hostname !== '127.0.0.1'
+  && !window.location.hostname.startsWith('192.168');
+
+// ═══ UTILIDAD DE URL ═══
 /**
- * Carga y parsea el archivo .env local
+ * Construye la URL final de la petición.
+ * - En producción → /api/proxy?path=<endpoint_nyt>&<otros_params>
+ * - En local      → URL directa a api.nytimes.com con api-key
+ *
+ * @param {string} nytPath   El path del endpoint NYT, ej: /svc/books/v3/lists/overview.json
+ * @param {Object} params    Parámetros de query adicionales (sin api-key)
+ * @returns {string}         URL lista para fetch
  */
+function buildUrl(nytPath, params = {}) {
+  if (IS_PRODUCTION) {
+    // El proxy añade el api-key en el servidor
+    const qs = new URLSearchParams({ path: nytPath, ...params });
+    return `/api/proxy?${qs.toString()}`;
+  } else {
+    // Local: incluir la api-key directamente
+    const qs = new URLSearchParams({ 'api-key': API_KEY, ...params });
+    return `https://api.nytimes.com${nytPath}?${qs.toString()}`;
+  }
+}
+
+// ═══ CARGA DE ENTORNO (solo relevante en local) ═══
 async function loadEnv() {
+  if (IS_PRODUCTION) {
+    // En producción, la API key vive en el servidor (Vercel env vars).
+    // No necesitamos cargar nada en el frontend.
+    console.log('[Config] Modo producción: usando proxy seguro.');
+    return;
+  }
+
   try {
     const response = await fetch(".env");
     if (!response.ok) throw new Error("No se encontró el archivo .env");
     const text = await response.text();
-    
-    // Parseo básico de cada línea del archivo .env
+
     text.split('\n').forEach(line => {
-      // Ignorar líneas vacías o comentarios
       if (!line.trim() || line.trim().startsWith('#')) return;
-      
       const [key, ...values] = line.split('=');
       if (key && values.length > 0) {
-        // Unir el valor por si contiene signos '=' y remover comillas extras
         const value = values.join('=').trim().replace(/^['"]|['"]$/g, '');
         if (key.trim() === 'API_KEY') API_KEY = value;
         if (key.trim() === 'API_SECRET') API_SECRET = value;
       }
     });
+    console.log('[Config] Modo local: .env cargado correctamente.');
   } catch (error) {
     console.error("Error cargando .env:", error);
   }
 }
 
 // ═══ CACHÉ ═══
-// Objeto global de caché en memoria persistente solo por sesión (hasta recargar la página)
 const cache = {};
 
 // ═══ LLAMADAS A LA API ═══
 /**
- * Realiza la petición fetch con control de errores y utiliza la caché.
- * @param {string} url La URL de la API a consumir
- * @returns {Promise<Object>} Datos JSON devueltos por la API o arroja un error
+ * Realiza la petición fetch con control de errores y caché.
+ * Acepta ahora un "nytPath" en lugar de una URL completa.
+ *
+ * @param {string} nytPath   Path del endpoint NYT, ej: /svc/books/v3/lists/overview.json
+ * @param {Object} params    Parámetros adicionales (opcional)
  */
-async function fetchAPI(url) {
+async function fetchAPI(nytPath, params = {}) {
+  const url = buildUrl(nytPath, params);
+
   if (cache[url]) {
-    console.log("Servido desde memoria caché:", url);
+    console.log("Servido desde memoria caché:", nytPath);
     return cache[url];
   }
 
@@ -55,9 +86,7 @@ async function fetchAPI(url) {
       if (response.status === 401)
         throw new Error("API Key inválida o no configurada.");
       if (response.status === 429)
-        throw new Error(
-          "Límite de peticiones alcanzado. Intenta en unos minutos.",
-        );
+        throw new Error("Límite de peticiones alcanzado. Intenta en unos minutos.");
       throw new Error(`Error en la petición: HTTP ${response.status}`);
     }
 
@@ -71,6 +100,7 @@ async function fetchAPI(url) {
     throw error;
   }
 }
+
 
 // ═══ RENDERIZADO ═══
 const mainContent = document.getElementById("content");
@@ -179,6 +209,9 @@ function renderGrid(title, cardsHtml, controlsHtml = "", paginationHtml = "") {
 }
 
 // ═══ NAVEGACIÓN Y TEMA ═══
+const SVG_LIGHT_BULB_BLUE = `<svg xmlns="http://www.w3.org/2000/svg" height="25" width="25" viewBox="0 0 640 640"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path fill="rgb(47, 13, 251)" d="M424.5 355.1C449 329.2 464 294.4 464 256C464 176.5 399.5 112 320 112C240.5 112 176 176.5 176 256C176 294.4 191 329.2 215.5 355.1C236.8 377.5 260.4 409.1 268.8 448L371.2 448C379.6 409 403.2 377.5 424.5 355.1zM459.3 388.1C435.7 413 416 443.4 416 477.7L416 496C416 540.2 380.2 576 336 576L304 576C259.8 576 224 540.2 224 496L224 477.7C224 443.4 204.3 413 180.7 388.1C148 353.7 128 307.2 128 256C128 150 214 64 320 64C426 64 512 150 512 256C512 307.2 492 353.7 459.3 388.1zM272 248C272 261.3 261.3 272 248 272C234.7 272 224 261.3 224 248C224 199.4 263.4 160 312 160C325.3 160 336 170.7 336 184C336 197.3 325.3 208 312 208C289.9 208 272 225.9 272 248z"/></svg>`;
+const SVG_LIGHT_BULB_PINK = `<svg xmlns="http://www.w3.org/2000/svg" height="25" width="25" viewBox="0 0 640 640"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path fill="rgb(251, 13, 95)" d="M424.5 355.1C449 329.2 464 294.4 464 256C464 176.5 399.5 112 320 112C240.5 112 176 176.5 176 256C176 294.4 191 329.2 215.5 355.1C236.8 377.5 260.4 409.1 268.8 448L371.2 448C379.6 409 403.2 377.5 424.5 355.1zM459.3 388.1C435.7 413 416 443.4 416 477.7L416 496C416 540.2 380.2 576 336 576L304 576C259.8 576 224 540.2 224 496L224 477.7C224 443.4 204.3 413 180.7 388.1C148 353.7 128 307.2 128 256C128 150 214 64 320 64C426 64 512 150 512 256C512 307.2 492 353.7 459.3 388.1zM272 248C272 261.3 261.3 272 248 272C234.7 272 224 261.3 224 248C224 199.4 263.4 160 312 160C325.3 160 336 170.7 336 184C336 197.3 325.3 208 312 208C289.9 208 272 225.9 272 248z"/></svg>`;
+
 let currentSectionType = "books";
 let currentSubSection = "overview";
 let currentPeriod = 1;
@@ -212,7 +245,7 @@ function toggleTheme() {
   // Cambiar icono del botón
   const btn = document.getElementById('theme-toggle');
   if (btn) {
-      btn.innerText = isLightMode ? 'CLARO' : 'OSCURO';
+      btn.innerHTML = isLightMode ? SVG_LIGHT_BULB_BLUE : SVG_LIGHT_BULB_PINK;
   }
   
   // Guardar preferencia, aunque las keys API o resultados no usen localStorage,
@@ -228,7 +261,10 @@ function loadThemePreference() {
   if (savedTheme === 'light') {
       document.body.classList.add('light-mode');
       const btn = document.getElementById('theme-toggle');
-      if (btn) btn.innerText = '🌙';
+      if (btn) btn.innerHTML = SVG_LIGHT_BULB_BLUE;
+  } else {
+      const btn = document.getElementById('theme-toggle');
+      if (btn) btn.innerHTML = SVG_LIGHT_BULB_PINK;
   }
 }
 
@@ -256,8 +292,7 @@ async function loadCategory(type, subsection, retainFilters = false) {
 
       if (currentSubSection === "overview") {
         title = "Libros: Overview Semanal";
-        url = `https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=${API_KEY}`;
-        const data = await fetchAPI(url);
+        const data = await fetchAPI('/svc/books/v3/lists/overview.json');
 
         if (data.results && data.results.lists) {
           for (const list of data.results.lists) {
@@ -272,8 +307,7 @@ async function loadCategory(type, subsection, retainFilters = false) {
         const secLabel =
           currentSubSection === "hardcover-fiction" ? "Ficción" : "No Ficción";
         title = `Libros: ${secLabel} (Top 15)`;
-        url = `https://api.nytimes.com/svc/books/v3/lists/current/${currentSubSection}.json?api-key=${API_KEY}`;
-        const data = await fetchAPI(url);
+        const data = await fetchAPI(`/svc/books/v3/lists/current/${currentSubSection}.json`);
         rawBooks = data.results?.books || [];
       }
 
@@ -377,8 +411,7 @@ async function loadCategory(type, subsection, retainFilters = false) {
                 </select>
             `;
 
-      url = `https://api.nytimes.com/svc/mostpopular/v2/${currentSubSection}/${currentPeriod}.json?api-key=${API_KEY}`;
-      const data = await fetchAPI(url);
+      const data = await fetchAPI(`/svc/mostpopular/v2/${currentSubSection}/${currentPeriod}.json`);
 
       cachedItemsForPagination = data.results || [];
       const totalItems = cachedItemsForPagination.length;
@@ -406,9 +439,7 @@ async function loadCategory(type, subsection, retainFilters = false) {
       const capSection =
         currentSubSection.charAt(0).toUpperCase() + currentSubSection.slice(1);
       title = `Top Stories: ${capSection}`;
-      url = `https://api.nytimes.com/svc/topstories/v2/${currentSubSection}.json?api-key=${API_KEY}`;
-
-      const data = await fetchAPI(url);
+      const data = await fetchAPI(`/svc/topstories/v2/${currentSubSection}.json`);
       cachedItemsForPagination = data.results || [];
       const totalItems = cachedItemsForPagination.length;
       const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -538,14 +569,14 @@ async function initApp() {
   // Cargar variables de entorno antes de cualquier fetch
   await loadEnv();
 
-  // Validar si la API KEY pudo cargarse
-  if (!API_KEY) {
+  // Validar si la API KEY pudo cargarse (Solo en local)
+  if (!IS_PRODUCTION && !API_KEY) {
       const mainContent = document.getElementById("content");
       mainContent.innerHTML = `
           <div class="error-msg">
-              <strong>¡Error de Configuración!</strong><br><br>
+              <strong>¡Error de Configuración Local!</strong><br><br>
               No se pudo cargar la <code>API_KEY</code> desde el archivo <code>.env</code>.<br><br>
-              <em>Nota: Puesto que usamos Vanilla JS, para leer un archivo local (<code>.env</code>) necesitas ejecutar esto desde un <strong>Servidor Local</strong> (por ejemplo: Live Server de VSCode, XAMPP, o <code>npx http-server</code>). Si abres el archivo <code>index.html</code> directamente haciendo doble clic, el navegador bloqueará la lectura del archivo .env por políticas de seguridad (CORS).</em>
+              <em>Nota: Para desarrollo local necesitas un archivo <code>.env</code> y ejecutar un <strong>Servidor Local</strong>. Si estás viendo esto en producción, contacta al administrador.</em>
           </div>
       `;
       return;
@@ -555,3 +586,17 @@ async function initApp() {
 }
 
 document.addEventListener("DOMContentLoaded", initApp);
+
+// ═══ PWA: REGISTRO DEL SERVICE WORKER ═══
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .then((registration) => {
+        console.log('[PWA] Service Worker registrado con éxito. Scope:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('[PWA] Error al registrar el Service Worker:', error);
+      });
+  });
+}
