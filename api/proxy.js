@@ -1,4 +1,5 @@
 /**
+ * daniel galindo autor
  * Vercel Serverless Function — Proxy seguro para la API del New York Times
  *
  * Esta función actúa como intermediario entre el frontend y la NYT API.
@@ -18,6 +19,8 @@ export default async function handler(req, res) {
 
   const API_KEY = process.env.NYT_API_KEY;
 
+
+  
   if (!API_KEY) {
     return res.status(500).json({
       error: 'API Key no configurada en el servidor. Revisa las variables de entorno en Vercel.'

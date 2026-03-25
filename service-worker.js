@@ -93,6 +93,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+  //daniel galindo
 
   // Estrategia para assets estáticos (CSS, JS, HTML, imágenes): Cache First
   event.respondWith(
