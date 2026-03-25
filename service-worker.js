@@ -7,8 +7,7 @@ const STATIC_ASSETS = [
   '/styles.css',
   '/script.js',
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/icons/logo.png'
 ];
 
 // --- INSTALL: Cache the App Shell ---
@@ -84,7 +83,9 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(request).then((cached) => {
         const fetchPromise = fetch(request).then((networkResponse) => {
-          caches.open(CACHE_NAME).then(cache => cache.put(request, networkResponse.clone()));
+          // Clonamos la respuesta antes de ponerla en caché para no consumirla
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, responseToCache));
           return networkResponse;
         });
         return cached || fetchPromise;
