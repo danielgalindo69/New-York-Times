@@ -3,7 +3,6 @@
   "name": "nyt-explorador",
   "functions": {
     "api/proxy.js": {
-      "runtime": "nodejs20.x",
       "maxDuration": 10
     }
   },
